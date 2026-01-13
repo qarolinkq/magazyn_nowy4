@@ -1,90 +1,64 @@
 import streamlit as st
 from supabase import create_client, Client
 
-# 1. Połączenie z Supabase (skonfiguruj Secrets w panelu Streamlit Cloud)
+# Połączenie z Supabase
 try:
     URL = st.secrets["SUPABASE_URL"]
     KEY = st.secrets["SUPABASE_KEY"]
     supabase: Client = create_client(URL, KEY)
 except Exception as e:
-    st.error("Błąd połączenia. Upewnij się, że dodałeś Secrets w Streamlit!")
+    st.error("Błąd konfiguracji Secrets!")
     st.stop()
 
-st.set_page_config(page_title="Magazyn AI", layout="centered")
-st.title("📦 Inteligentny System Magazynowy")
+st.title("📦 Inteligentny Magazyn")
 
 # --- FUNKCJE POMOCNICZE ---
 def pobierz_liste_produktow():
-    # Pobiera tylko nazwy dla systemu podpowiedzi
+    # Pobieramy nazwy do podpowiedzi
     res = supabase.table("Produkty").select("nazwa").execute()
     return [p['nazwa'] for p in res.data] if res.data else []
 
 def pobierz_kategorie():
-    # Pobiera kategorie do listy rozwijanej
+    # Pobieramy kategorie (zgodnie ze schematem: tabela 'kategorie')
     res = supabase.table("kategorie").select("id, nazwa").execute()
     return {k['nazwa']: k['id'] for k in res.data} if res.data else {}
 
-# --- LOGIKA APLIKACJI ---
-
-# Pobieramy dane do podpowiedzi
-istniejace_nazwy = pobierz_liste_produktow()
+# --- LOGIKA PODPOWIEDZI ---
+istniejace = pobierz_liste_produktow()
 kategorie_dict = pobierz_kategorie()
 
 st.header("Dodaj nowy produkt")
-
-# System podpowiedzi (Searchbox)
-szukaj = st.selectbox(
-    "Podpowiedź: sprawdź czy produkt już istnieje",
-    options=[""] + istniejace_nazwy,
-    help="Zacznij wpisywać, aby przeszukać bazę"
-)
+szukaj = st.selectbox("Szukaj w bazie (podpowiedź):", [""] + istniejace)
 
 if szukaj:
-    st.info(f"Produkt '{szukaj}' znajduje się już w Twoim magazynie.")
+    st.info(f"Produkt '{szukaj}' jest już w bazie.")
 
-# Formularz dodawania
-with st.form("form_dodawania", clear_on_submit=True):
-    # Pola zgodne ze schematem
-    nowa_nazwa = st.text_input("Nazwa produktu", value=szukaj if szukaj else "")
-    liczba = st.number_input("Liczba (ilość)", min_value=1, step=1)
-    # Kolumna 'Ce...' na schemacie to prawdopodobnie 'Cena'
+# --- FORMULARZ (POPRAWIONY) ---
+with st.form("dodaj_produkt_form", clear_on_submit=True):
+    nazwa = st.text_input("Nazwa produktu", value=szukaj if szukaj else "")
+    liczba = st.number_input("Ilość", min_value=1, step=1)
+    # Kolumna 'Ce...' ze schematu to prawdopodobnie 'cena'
     cena = st.number_input("Cena", min_value=0.0, format="%.2f")
+    kat_nazwa = st.selectbox("Kategoria", options=list(kategorie_dict.keys()))
     
-    if kategorie_dict:
-        wybrana_kat = st.selectbox("Wybierz kategorię", options=list(kategorie_dict.keys()))
-    else:
-        st.warning("Najpierw dodaj kategorie w bazie danych!")
-        wybrana_kat = None
-
-    submit = st.form_submit_button("Zapisz w magazynie")
-
+    submit = st.form_submit_button("Zapisz produkt")
+    
     if submit:
-        if nowa_nazwa and wybrana_kat:
-            dane_produktu = {
-                "nazwa": nowa_nazwa,
+        if nazwa and kat_nazwa:
+            # ROZWIĄZANIE BŁĘDU: Nie definiujemy 'id' w tym słowniku.
+            # Baza danych sama przypisze kolejny wolny numer.
+            nowy_rekord = {
+                "nazwa": nazwa,
                 "liczba": liczba,
                 "cena": cena,
-                "kategoria_id": kategorie_dict[wybrana_kat]
+                "kategoria_id": kategorie_dict[kat_nazwa]
             }
             
-            # Wstawianie do tabeli Produkty
             try:
-                supabase.table("Produkty").insert(dane_produktu).execute()
-                st.success(f"Pomyślnie dodano: {nowa_nazwa}")
+                supabase.table("Produkty").insert(nowy_rekord).execute()
+                st.success(f"Dodano pomyślnie: {nazwa}")
                 st.rerun()
             except Exception as e:
-                st.error(f"Błąd zapisu: {e}")
+                st.error(f"Błąd bazy danych: {e}")
         else:
-            st.warning("Wypełnij wszystkie pola!")
-
-# --- PODGLĄD MAGAZYNU ---
-st.divider()
-st.subheader("Aktualny stan magazynu")
-prod_res = supabase.table("Produkty").select("nazwa, liczba, cena, kategorie(nazwa)").execute()
-
-if prod_res.data:
-    for p in prod_res.data:
-        kat_nazwa = p['kategorie']['nazwa'] if p.get('kategorie') else "Brak"
-        st.write(f"🔹 **{p['nazwa']}** | Ilość: {p['liczba']} | Cena: {p['cena']} zł | ({kat_nazwa})")
-else:
-    st.info("Magazyn jest pusty.")
+            st.warning("Uzupełnij nazwę produktu!")
