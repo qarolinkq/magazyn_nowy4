@@ -69,11 +69,9 @@ def usun_kategorie(kategoria_id):
         .execute()
         .data
     )
-
     if produkty_w_kat:
         st.error("❌ Nie można usunąć kategorii — są do niej przypisane produkty")
         return
-
     supabase.table("kategorie").delete().eq("id", kategoria_id).execute()
     st.success("🗑️ Kategoria usunięta")
     st.rerun()
@@ -111,39 +109,41 @@ with tab1:
                 f"Kategoria: **{kat_id_na_nazwe.get(p['kategoria_id'], '—')}**"
             )
 
-            col1, col2 = st.columns(2)
+            col_minus, col_plus = st.columns(2)
 
-            # ➖ ZDEJMIJ ILOŚĆ
-            with col1:
+            # ZMNIEJSZ
+            with col_minus:
+                st.caption("Zmniejsz ilość")
                 ile_minus = st.number_input(
-                    "Zdejmij ilość",
+                    "",
                     min_value=1,
                     max_value=int(p["liczba"]),
                     value=1,
-                    key=f"minus_{p['id']}"
+                    key=f"minus_{p['id']}",
+                    label_visibility="collapsed"
                 )
-                if st.button("➖ Zdejmij", key=f"btn_minus_{p['id']}"):
+                if st.button("➖", key=f"btn_minus_{p['id']}"):
                     ustaw_stan(p["id"], p["liczba"] - ile_minus)
 
-            # ➕ DODAJ ILOŚĆ
-            with col2:
+            # ZWIĘKSZ
+            with col_plus:
+                st.caption("Zwiększ ilość")
                 ile_plus = st.number_input(
-                    "Dodaj ilość",
+                    "",
                     min_value=1,
                     value=1,
-                    key=f"plus_{p['id']}"
+                    key=f"plus_{p['id']}",
+                    label_visibility="collapsed"
                 )
-                if st.button("➕ Dodaj", key=f"btn_plus_{p['id']}"):
+                if st.button("➕", key=f"btn_plus_{p['id']}"):
                     ustaw_stan(p["id"], p["liczba"] + ile_plus)
 
-            col3, col4 = st.columns(2)
+            col_zero, col_del = st.columns(2)
 
-            # 🗑️ WYZERUJ
-            if col3.button("🗑️ Wyzeruj stan", key=f"zero_{p['id']}"):
+            if col_zero.button("🗑️ Wyzeruj stan", key=f"zero_{p['id']}"):
                 ustaw_stan(p["id"], 0)
 
-            # ❌ USUŃ PRODUKT
-            if col4.button("❌ Usuń produkt", key=f"del_{p['id']}"):
+            if col_del.button("❌ Usuń produkt", key=f"del_{p['id']}"):
                 usun_produkt(p["id"])
 
             st.divider()
