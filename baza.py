@@ -20,8 +20,8 @@ except Exception:
 
 def pobierz_dane():
     try:
-        produkty = supabase.table("Produkty").select("*").execute().data
-        kategorie = supabase.table("Kategorie").select("*").execute().data
+        produkty = supabase.table("produkty").select("*").execute().data
+        kategorie = supabase.table("kategorie").select("*").execute().data
         return produkty, kategorie
     except Exception as e:
         st.error(f"Błąd pobierania danych: {e}")
@@ -29,15 +29,15 @@ def pobierz_dane():
 
 def aktualizuj_stan(id_produktu, nowa_ilosc):
     if nowa_ilosc > 0:
-        supabase.table("Produkty").update(
+        supabase.table("produkty").update(
             {"liczba": nowa_ilosc}
         ).eq("id", id_produktu).execute()
     else:
-        supabase.table("Produkty").delete().eq("id", id_produktu).execute()
+        supabase.table("produkty").delete().eq("id", id_produktu).execute()
     st.rerun()
 
 def dodaj_produkt(nazwa, ilosc, cena, kategoria_id):
-    supabase.table("Produkty").insert({
+    supabase.table("produkty").insert({
         "nazwa": nazwa,
         "liczba": ilosc,
         "cena": cena,
@@ -47,7 +47,7 @@ def dodaj_produkt(nazwa, ilosc, cena, kategoria_id):
     st.rerun()
 
 def dodaj_kategorie(nazwa, opis):
-    supabase.table("Kategorie").insert({
+    supabase.table("kategorie").insert({
         "nazwa": nazwa,
         "opis": opis
     }).execute()
@@ -117,10 +117,14 @@ with tab2:
         ilosc = st.number_input("Ilość", min_value=1, value=1)
         cena = st.number_input("Cena (zł)", min_value=0.0, step=0.01)
 
-        kategoria = st.selectbox(
-            "Kategoria",
-            options=list(kat_nazwa_na_id.keys())
-        )
+        if kategorie:
+            kategoria = st.selectbox(
+                "Kategoria",
+                options=list(kat_nazwa_na_id.keys())
+            )
+        else:
+            st.warning("Dodaj najpierw kategorię")
+            st.stop()
 
         submitted = st.form_submit_button("➕ Dodaj")
 
@@ -137,8 +141,11 @@ with tab2:
 with tab3:
     st.subheader("Kategorie")
 
-    for k in kategorie:
-        st.markdown(f"**{k['nazwa']}** — {k['opis']}")
+    if not kategorie:
+        st.info("Brak kategorii.")
+    else:
+        for k in kategorie:
+            st.markdown(f"**{k['nazwa']}** — {k['opis']}")
 
     st.divider()
 
@@ -149,4 +156,3 @@ with tab3:
 
         if submitted:
             dodaj_kategorie(nazwa, opis)
-
