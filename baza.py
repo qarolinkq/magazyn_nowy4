@@ -109,9 +109,9 @@ with tab1:
                 f"Kategoria: {kat_id_na_nazwe.get(p['kategoria_id'], '—')}"
             )
 
-            # ---- JEDEN PROFESJONALNY PASEK ----
+            # ---- PROFESJONALNY PASEK STEROWANIA ----
             col_qty, col_minus, col_plus, col_zero, col_del = st.columns(
-                [2, 1, 1, 2, 2]
+                [2, 1.5, 1.5, 2, 2]
             )
 
             with col_qty:
@@ -123,11 +123,11 @@ with tab1:
                 )
 
             with col_minus:
-                if st.button("➖", key=f"minus_{p['id']}"):
+                if st.button("➖ Usuń", key=f"minus_{p['id']}"):
                     zmien_stan(p["id"], max(0, p["liczba"] - ilosc))
 
             with col_plus:
-                if st.button("➕", key=f"plus_{p['id']}"):
+                if st.button("➕ Dodaj", key=f"plus_{p['id']}"):
                     zmien_stan(p["id"], p["liczba"] + ilosc)
 
             with col_zero:
