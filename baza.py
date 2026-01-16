@@ -20,8 +20,8 @@ except Exception:
 
 def pobierz_dane():
     try:
-        produkty = supabase.table("produkty").select("*").execute().data
-        kategorie = supabase.table("kategorie").select("*").execute().data
+        produkty = supabase.table("Produkty").select("*").execute().data
+        kategorie = supabase.table("Kategorie").select("*").execute().data
         return produkty, kategorie
     except Exception as e:
         st.error(f"Błąd pobierania danych: {e}")
@@ -29,15 +29,15 @@ def pobierz_dane():
 
 def aktualizuj_stan(id_produktu, nowa_ilosc):
     if nowa_ilosc > 0:
-        supabase.table("produkty").update(
+        supabase.table("Produkty").update(
             {"liczba": nowa_ilosc}
         ).eq("id", id_produktu).execute()
     else:
-        supabase.table("produkty").delete().eq("id", id_produktu).execute()
+        supabase.table("Produkty").delete().eq("id", id_produktu).execute()
     st.rerun()
 
 def dodaj_produkt(nazwa, ilosc, cena, kategoria_id):
-    supabase.table("produkty").insert({
+    supabase.table("Produkty").insert({
         "nazwa": nazwa,
         "liczba": ilosc,
         "cena": cena,
@@ -47,7 +47,7 @@ def dodaj_produkt(nazwa, ilosc, cena, kategoria_id):
     st.rerun()
 
 def dodaj_kategorie(nazwa, opis):
-    supabase.table("kategorie").insert({
+    supabase.table("Kategorie").insert({
         "nazwa": nazwa,
         "opis": opis
     }).execute()
@@ -71,7 +71,7 @@ tab1, tab2, tab3 = st.tabs([
     "📂 Kategorie"
 ])
 
-# ================== TAB 1 ==================
+# ================== TAB 1 — MAGAZYN ==================
 
 with tab1:
     st.subheader("Aktualny stan magazynu")
@@ -107,7 +107,7 @@ with tab1:
             if c6.button("➖", key=f"btn_{p['id']}"):
                 aktualizuj_stan(p["id"], p["liczba"] - ile)
 
-# ================== TAB 2 ==================
+# ================== TAB 2 — DODAJ PRODUKT ==================
 
 with tab2:
     st.subheader("Dodaj nowy produkt")
@@ -123,7 +123,7 @@ with tab2:
                 options=list(kat_nazwa_na_id.keys())
             )
         else:
-            st.warning("Dodaj najpierw kategorię")
+            st.warning("Najpierw dodaj kategorię")
             st.stop()
 
         submitted = st.form_submit_button("➕ Dodaj")
@@ -136,7 +136,7 @@ with tab2:
                 kat_nazwa_na_id[kategoria]
             )
 
-# ================== TAB 3 ==================
+# ================== TAB 3 — KATEGORIE ==================
 
 with tab3:
     st.subheader("Kategorie")
@@ -156,3 +156,4 @@ with tab3:
 
         if submitted:
             dodaj_kategorie(nazwa, opis)
+
