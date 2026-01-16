@@ -45,6 +45,7 @@ def dodaj_produkt(nazwa, ilosc, cena, kategoria_id):
     if not nazwa.strip():
         st.error("❌ Nazwa produktu nie może być pusta")
         return
+
     try:
         supabase.table("produkty").insert({
             "nazwa": nazwa.strip(),
@@ -62,7 +63,9 @@ def dodaj_kategorie(nazwa, opis):
     if not nazwa.strip():
         st.error("❌ Nazwa kategorii nie może być pusta")
         return
+
     try:
+        # ❗ NIE PRZEKAZUJEMY ID – baza MUSI je nadać sama
         supabase.table("kategorie").insert({
             "nazwa": nazwa.strip(),
             "opis": opis.strip()
@@ -90,7 +93,7 @@ tab1, tab2, tab3 = st.tabs([
     "📂 Kategorie"
 ])
 
-# ================== TAB 1 — MAGAZYN ==================
+# ================== TAB 1 ==================
 
 with tab1:
     st.subheader("Aktualny stan magazynu")
@@ -109,16 +112,8 @@ with tab1:
 
         st.divider()
 
-        h1, h2, h3, h4, h5, h6 = st.columns([2, 1, 1, 1.5, 1.5, 1])
-        h1.write("**Nazwa**")
-        h2.write("**Stan**")
-        h3.write("**Cena**")
-        h4.write("**Kategoria**")
-        h5.write("**Ile wydać**")
-        h6.write("**Akcja**")
-
         for p in produkty:
-            c1, c2, c3, c4, c5, c6 = st.columns([2, 1, 1, 1.5, 1.5, 1])
+            c1, c2, c3, c4, c5, c6 = st.columns([2,1,1,1.5,1.5,1])
 
             c1.write(p["nazwa"])
             c2.write(f"{p['liczba']} szt.")
@@ -139,7 +134,7 @@ with tab1:
     else:
         st.info("Magazyn jest pusty.")
 
-# ================== TAB 2 — DODAJ PRODUKT ==================
+# ================== TAB 2 ==================
 
 with tab2:
     st.subheader("Dodaj nowy produkt")
@@ -153,9 +148,9 @@ with tab2:
             cena = st.number_input("Cena (zł)", min_value=0.0, step=0.01)
             kategoria = st.selectbox("Kategoria", kat_nazwa_na_id.keys())
 
-            submitted = st.form_submit_button("➕ Dodaj produkt")
+            submit = st.form_submit_button("➕ Dodaj produkt")
 
-            if submitted:
+            if submit:
                 dodaj_produkt(
                     nazwa,
                     ilosc,
@@ -163,16 +158,13 @@ with tab2:
                     kat_nazwa_na_id[kategoria]
                 )
 
-# ================== TAB 3 — KATEGORIE ==================
+# ================== TAB 3 ==================
 
 with tab3:
     st.subheader("Kategorie")
 
-    if kategorie:
-        for k in kategorie:
-            st.markdown(f"**{k['nazwa']}** — {k['opis']}")
-    else:
-        st.info("Brak kategorii.")
+    for k in kategorie:
+        st.markdown(f"**{k['nazwa']}** — {k['opis']}")
 
     st.divider()
 
@@ -180,7 +172,7 @@ with tab3:
         nazwa = st.text_input("Nazwa kategorii")
         opis = st.text_area("Opis")
 
-        submitted = st.form_submit_button("➕ Dodaj kategorię")
+        submit = st.form_submit_button("➕ Dodaj kategorię")
 
-        if submitted:
+        if submit:
             dodaj_kategorie(nazwa, opis)
