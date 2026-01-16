@@ -1,10 +1,8 @@
 import streamlit as st
 from supabase import create_client, Client
 
-# ================== KONFIGURACJA ==================
-
 st.set_page_config(
-    page_title="📦 System Magazynowy",
+    page_title="☁️ System magazynowy Chmurka",
     layout="wide"
 )
 
@@ -15,8 +13,7 @@ try:
 except Exception:
     st.error("❌ Brak konfiguracji Supabase")
     st.stop()
-
-# ================== FUNKCJE ==================
+    
 
 def pobierz_dane():
     try:
@@ -34,6 +31,11 @@ def aktualizuj_stan(id_produktu, nowa_ilosc):
         ).eq("id", id_produktu).execute()
     else:
         supabase.table("Produkty").delete().eq("id", id_produktu).execute()
+    st.rerun()
+
+def usun_wszystkie_produkty():
+    supabase.table("Produkty").delete().neq("id", 0).execute()
+    st.success("🗑️ Wszystkie produkty zostały usunięte")
     st.rerun()
 
 def dodaj_produkt(nazwa, ilosc, cena, kategoria_id):
@@ -63,7 +65,7 @@ kat_nazwa_na_id = {k["nazwa"]: k["id"] for k in kategorie}
 
 # ================== UI ==================
 
-st.title("📦 System Magazynowy (Supabase)")
+st.title("☁️ System magazynowy Chmurka")
 
 tab1, tab2, tab3 = st.tabs([
     "📋 Magazyn",
@@ -76,9 +78,21 @@ tab1, tab2, tab3 = st.tabs([
 with tab1:
     st.subheader("Aktualny stan magazynu")
 
-    if not produkty:
-        st.info("Brak produktów.")
-    else:
+    if produkty:
+        # PRZYCISK USUWANIA WSZYSTKIEGO
+        if st.button("🗑️ Wyczyść cały magazyn", type="secondary"):
+            st.session_state["confirm_delete"] = True
+
+        if st.session_state.get("confirm_delete"):
+            st.warning("⚠️ Czy na pewno chcesz usunąć WSZYSTKIE produkty?")
+            col_yes, col_no = st.columns(2)
+            if col_yes.button("TAK, usuń wszystko"):
+                usun_wszystkie_produkty()
+            if col_no.button("Anuluj"):
+                st.session_state["confirm_delete"] = False
+
+        st.divider()
+
         h1, h2, h3, h4, h5, h6 = st.columns([2, 1, 1, 1.5, 1.5, 1])
         h1.write("**Nazwa**")
         h2.write("**Stan**")
@@ -107,13 +121,16 @@ with tab1:
             if c6.button("➖", key=f"btn_{p['id']}"):
                 aktualizuj_stan(p["id"], p["liczba"] - ile)
 
+    else:
+        st.info("Magazyn jest pusty.")
+
 # ================== TAB 2 — DODAJ PRODUKT ==================
 
 with tab2:
     st.subheader("Dodaj nowy produkt")
 
     if not kategorie:
-        st.warning("Najpierw dodaj kategorię w zakładce „Kategorie”.")
+        st.warning("Najpierw dodaj kategorię.")
     else:
         with st.form("dodaj_produkt"):
             nazwa = st.text_input("Nazwa produktu")
