@@ -59,7 +59,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
 with tab1:
     st.subheader("Filtrowanie i sortowanie")
 
-    f1, f2, f3, f4 = st.columns(4)
+    f1, f2, f3 = st.columns(3)
 
     with f1:
         search_query = st.text_input(
@@ -73,9 +73,6 @@ with tab1:
         )
 
     with f3:
-        tylko_niski = st.checkbox("⚠️ Tylko niski stan (<5)")
-
-    with f4:
         sortowanie = st.selectbox(
             "↕️ Sortuj według",
             [
@@ -104,9 +101,6 @@ with tab1:
         if filtr_kategoria != "Wszystkie":
             if kat_id_na_nazwe.get(p["kategoria_id"]) != filtr_kategoria:
                 continue
-
-        if tylko_niski and p["liczba"] >= 5:
-            continue
 
         p["_wartosc"] = wartosc
         filtrowane.append(p)
