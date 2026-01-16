@@ -1,6 +1,8 @@
 import streamlit as st
 from supabase import create_client, Client
 
+# ================== KONFIGURACJA ==================
+
 st.set_page_config(
     page_title="☁️ System magazynowy Chmurka",
     layout="wide"
@@ -13,7 +15,8 @@ try:
 except Exception:
     st.error("❌ Brak konfiguracji Supabase")
     st.stop()
-    
+
+# ================== FUNKCJE ==================
 
 def pobierz_dane():
     try:
@@ -39,22 +42,36 @@ def usun_wszystkie_produkty():
     st.rerun()
 
 def dodaj_produkt(nazwa, ilosc, cena, kategoria_id):
-    supabase.table("Produkty").insert({
-        "nazwa": nazwa,
-        "liczba": ilosc,
-        "cena": cena,
-        "kategoria_id": kategoria_id
-    }).execute()
-    st.success("✅ Produkt dodany")
-    st.rerun()
+    if not nazwa.strip():
+        st.error("❌ Nazwa produktu nie może być pusta")
+        return
+    try:
+        supabase.table("Produkty").insert({
+            "nazwa": nazwa.strip(),
+            "liczba": ilosc,
+            "cena": cena,
+            "kategoria_id": kategoria_id
+        }).execute()
+        st.success("✅ Produkt dodany")
+        st.rerun()
+    except Exception as e:
+        st.error("❌ Nie udało się dodać produktu")
+        st.code(str(e))
 
 def dodaj_kategorie(nazwa, opis):
-    supabase.table("Kategorie").insert({
-        "nazwa": nazwa,
-        "opis": opis
-    }).execute()
-    st.success("✅ Kategoria dodana")
-    st.rerun()
+    if not nazwa.strip():
+        st.error("❌ Nazwa kategorii nie może być pusta")
+        return
+    try:
+        supabase.table("Kategorie").insert({
+            "nazwa": nazwa.strip(),
+            "opis": opis.strip()
+        }).execute()
+        st.success("✅ Kategoria dodana")
+        st.rerun()
+    except Exception as e:
+        st.error("❌ Nie udało się dodać kategorii")
+        st.code(str(e))
 
 # ================== DANE ==================
 
@@ -79,16 +96,15 @@ with tab1:
     st.subheader("Aktualny stan magazynu")
 
     if produkty:
-        # PRZYCISK USUWANIA WSZYSTKIEGO
-        if st.button("🗑️ Wyczyść cały magazyn", type="secondary"):
+        if st.button("🗑️ Wyczyść cały magazyn"):
             st.session_state["confirm_delete"] = True
 
         if st.session_state.get("confirm_delete"):
             st.warning("⚠️ Czy na pewno chcesz usunąć WSZYSTKIE produkty?")
-            col_yes, col_no = st.columns(2)
-            if col_yes.button("TAK, usuń wszystko"):
+            col1, col2 = st.columns(2)
+            if col1.button("TAK, usuń wszystko"):
                 usun_wszystkie_produkty()
-            if col_no.button("Anuluj"):
+            if col2.button("Anuluj"):
                 st.session_state["confirm_delete"] = False
 
         st.divider()
@@ -120,7 +136,6 @@ with tab1:
 
             if c6.button("➖", key=f"btn_{p['id']}"):
                 aktualizuj_stan(p["id"], p["liczba"] - ile)
-
     else:
         st.info("Magazyn jest pusty.")
 
