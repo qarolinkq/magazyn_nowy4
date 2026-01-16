@@ -102,16 +102,15 @@ with tab1:
     else:
         for p in produkty:
             st.markdown(f"### {p['nazwa']}")
-
             st.caption(
                 f"Stan: {p['liczba']} szt. | "
                 f"Cena: {p['cena']} zł | "
                 f"Kategoria: {kat_id_na_nazwe.get(p['kategoria_id'], '—')}"
             )
 
-            # ---- PROFESJONALNY PASEK STEROWANIA ----
+            # ===== JEDEN PROFESJONALNY PASEK =====
             col_qty, col_minus, col_plus, col_zero, col_del = st.columns(
-                [2, 1.5, 1.5, 2, 2]
+                [2, 1, 1, 2, 2]
             )
 
             with col_qty:
@@ -123,12 +122,14 @@ with tab1:
                 )
 
             with col_minus:
-                if st.button("➖ Usuń", key=f"minus_{p['id']}"):
+                if st.button("➖", key=f"minus_{p['id']}"):
                     zmien_stan(p["id"], max(0, p["liczba"] - ilosc))
+                st.caption("Usuń")
 
             with col_plus:
-                if st.button("➕ Dodaj", key=f"plus_{p['id']}"):
+                if st.button("➕", key=f"plus_{p['id']}"):
                     zmien_stan(p["id"], p["liczba"] + ilosc)
+                st.caption("Dodaj")
 
             with col_zero:
                 if st.button("🗑️ Wyzeruj stan", key=f"zero_{p['id']}"):
