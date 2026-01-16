@@ -36,11 +36,6 @@ def aktualizuj_stan(id_produktu, nowa_ilosc):
         supabase.table("produkty").delete().eq("id", id_produktu).execute()
     st.rerun()
 
-def usun_wszystkie_produkty():
-    supabase.table("produkty").delete().neq("id", 0).execute()
-    st.success("🗑️ Wszystkie produkty zostały usunięte")
-    st.rerun()
-
 def dodaj_produkt(nazwa, ilosc, cena, kategoria_id):
     if not nazwa.strip():
         st.error("❌ Nazwa produktu nie może być pusta")
@@ -66,7 +61,6 @@ def dodaj_kategorie(nazwa, opis):
     st.rerun()
 
 def usun_kategorie(kategoria_id):
-    # sprawdź czy są produkty w tej kategorii
     produkty_w_kat = (
         supabase.table("produkty")
         .select("id")
@@ -156,6 +150,7 @@ with tab2:
 with tab3:
     st.subheader("Kategorie")
 
+    # lista kategorii
     if kategorie:
         for k in kategorie:
             st.markdown(f"**{k['nazwa']}** — {k['opis']}")
@@ -163,6 +158,21 @@ with tab3:
         st.info("Brak kategorii.")
 
     st.divider()
+
+    # ---- DODAJ KATEGORIĘ ----
+    st.subheader("➕ Dodaj kategorię")
+
+    with st.form("dodaj_kategorie"):
+        nowa_nazwa = st.text_input("Nazwa kategorii")
+        nowy_opis = st.text_area("Opis kategorii")
+        submit_add = st.form_submit_button("Dodaj kategorię")
+
+        if submit_add:
+            dodaj_kategorie(nowa_nazwa, nowy_opis)
+
+    st.divider()
+
+    # ---- USUŃ KATEGORIĘ ----
     st.subheader("🗑️ Usuń kategorię")
 
     if kategorie:
