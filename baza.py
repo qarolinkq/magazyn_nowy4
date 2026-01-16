@@ -20,8 +20,8 @@ except Exception:
 
 def pobierz_dane():
     try:
-        produkty = supabase.table("Produkty").select("*").execute().data
-        kategorie = supabase.table("Kategorie").select("*").execute().data
+        produkty = supabase.table("produkty").select("*").execute().data
+        kategorie = supabase.table("kategorie").select("*").execute().data
         return produkty, kategorie
     except Exception as e:
         st.error(f"Błąd pobierania danych: {e}")
@@ -29,15 +29,15 @@ def pobierz_dane():
 
 def aktualizuj_stan(id_produktu, nowa_ilosc):
     if nowa_ilosc > 0:
-        supabase.table("Produkty").update(
+        supabase.table("produkty").update(
             {"liczba": nowa_ilosc}
         ).eq("id", id_produktu).execute()
     else:
-        supabase.table("Produkty").delete().eq("id", id_produktu).execute()
+        supabase.table("produkty").delete().eq("id", id_produktu).execute()
     st.rerun()
 
 def usun_wszystkie_produkty():
-    supabase.table("Produkty").delete().neq("id", 0).execute()
+    supabase.table("produkty").delete().neq("id", 0).execute()
     st.success("🗑️ Wszystkie produkty zostały usunięte")
     st.rerun()
 
@@ -46,7 +46,7 @@ def dodaj_produkt(nazwa, ilosc, cena, kategoria_id):
         st.error("❌ Nazwa produktu nie może być pusta")
         return
     try:
-        supabase.table("Produkty").insert({
+        supabase.table("produkty").insert({
             "nazwa": nazwa.strip(),
             "liczba": ilosc,
             "cena": cena,
@@ -63,7 +63,7 @@ def dodaj_kategorie(nazwa, opis):
         st.error("❌ Nazwa kategorii nie może być pusta")
         return
     try:
-        supabase.table("Kategorie").insert({
+        supabase.table("kategorie").insert({
             "nazwa": nazwa.strip(),
             "opis": opis.strip()
         }).execute()
@@ -101,10 +101,10 @@ with tab1:
 
         if st.session_state.get("confirm_delete"):
             st.warning("⚠️ Czy na pewno chcesz usunąć WSZYSTKIE produkty?")
-            col1, col2 = st.columns(2)
-            if col1.button("TAK, usuń wszystko"):
+            c1, c2 = st.columns(2)
+            if c1.button("TAK, usuń wszystko"):
                 usun_wszystkie_produkty()
-            if col2.button("Anuluj"):
+            if c2.button("Anuluj"):
                 st.session_state["confirm_delete"] = False
 
         st.divider()
@@ -151,11 +151,7 @@ with tab2:
             nazwa = st.text_input("Nazwa produktu")
             ilosc = st.number_input("Ilość", min_value=1, value=1)
             cena = st.number_input("Cena (zł)", min_value=0.0, step=0.01)
-
-            kategoria = st.selectbox(
-                "Kategoria",
-                options=list(kat_nazwa_na_id.keys())
-            )
+            kategoria = st.selectbox("Kategoria", kat_nazwa_na_id.keys())
 
             submitted = st.form_submit_button("➕ Dodaj produkt")
 
