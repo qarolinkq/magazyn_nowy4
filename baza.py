@@ -13,10 +13,10 @@ try:
     SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 except Exception:
-    st.error("❌ Brak konfiguracji Supabase (SUPABASE_URL, SUPABASE_KEY)")
+    st.error("❌ Brak konfiguracji Supabase")
     st.stop()
 
-# ================== FUNKCJE BAZY ==================
+# ================== FUNKCJE ==================
 
 def pobierz_dane():
     try:
@@ -77,7 +77,7 @@ with tab1:
     st.subheader("Aktualny stan magazynu")
 
     if not produkty:
-        st.info("Brak produktów w magazynie.")
+        st.info("Brak produktów.")
     else:
         h1, h2, h3, h4, h5, h6 = st.columns([2, 1, 1, 1.5, 1.5, 1])
         h1.write("**Nazwa**")
@@ -112,48 +112,47 @@ with tab1:
 with tab2:
     st.subheader("Dodaj nowy produkt")
 
-    with st.form("dodaj_produkt"):
-        nazwa = st.text_input("Nazwa produktu")
-        ilosc = st.number_input("Ilość", min_value=1, value=1)
-        cena = st.number_input("Cena (zł)", min_value=0.0, step=0.01)
+    if not kategorie:
+        st.warning("Najpierw dodaj kategorię w zakładce „Kategorie”.")
+    else:
+        with st.form("dodaj_produkt"):
+            nazwa = st.text_input("Nazwa produktu")
+            ilosc = st.number_input("Ilość", min_value=1, value=1)
+            cena = st.number_input("Cena (zł)", min_value=0.0, step=0.01)
 
-        if kategorie:
             kategoria = st.selectbox(
                 "Kategoria",
                 options=list(kat_nazwa_na_id.keys())
             )
-        else:
-            st.warning("Najpierw dodaj kategorię")
-            st.stop()
 
-        submitted = st.form_submit_button("➕ Dodaj")
+            submitted = st.form_submit_button("➕ Dodaj produkt")
 
-        if submitted:
-            dodaj_produkt(
-                nazwa,
-                ilosc,
-                cena,
-                kat_nazwa_na_id[kategoria]
-            )
+            if submitted:
+                dodaj_produkt(
+                    nazwa,
+                    ilosc,
+                    cena,
+                    kat_nazwa_na_id[kategoria]
+                )
 
 # ================== TAB 3 — KATEGORIE ==================
 
 with tab3:
     st.subheader("Kategorie")
 
-    if not kategorie:
-        st.info("Brak kategorii.")
-    else:
+    if kategorie:
         for k in kategorie:
             st.markdown(f"**{k['nazwa']}** — {k['opis']}")
+    else:
+        st.info("Brak kategorii.")
 
     st.divider()
 
     with st.form("dodaj_kategorie"):
         nazwa = st.text_input("Nazwa kategorii")
         opis = st.text_area("Opis")
+
         submitted = st.form_submit_button("➕ Dodaj kategorię")
 
         if submitted:
             dodaj_kategorie(nazwa, opis)
-
