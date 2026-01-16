@@ -19,21 +19,22 @@ except Exception:
 # ================== FUNKCJE ==================
 
 def pobierz_dane():
-    try:
-        produkty = supabase.table("produkty").select("*").execute().data
-        kategorie = supabase.table("kategorie").select("*").execute().data
-        return produkty, kategorie
-    except Exception as e:
-        st.error(f"Błąd pobierania danych: {e}")
-        return [], []
+    produkty = supabase.table("produkty").select("*").execute().data
+    kategorie = supabase.table("kategorie").select("*").execute().data
+    return produkty, kategorie
 
-def aktualizuj_stan(id_produktu, nowa_ilosc):
+def ustaw_stan(id_produktu, nowa_ilosc):
     if nowa_ilosc > 0:
         supabase.table("produkty").update(
             {"liczba": nowa_ilosc}
         ).eq("id", id_produktu).execute()
     else:
         supabase.table("produkty").delete().eq("id", id_produktu).execute()
+    st.rerun()
+
+def usun_produkt(id_produktu):
+    supabase.table("produkty").delete().eq("id", id_produktu).execute()
+    st.success("🗑️ Produkt usunięty")
     st.rerun()
 
 def dodaj_produkt(nazwa, ilosc, cena, kategoria_id):
@@ -97,29 +98,55 @@ tab1, tab2, tab3 = st.tabs([
 # ================== TAB 1 — MAGAZYN ==================
 
 with tab1:
-    st.subheader("Aktualny stan magazynu")
+    st.subheader("Zarządzanie stanem produktów")
 
-    if produkty:
+    if not produkty:
+        st.info("Magazyn jest pusty.")
+    else:
         for p in produkty:
-            c1, c2, c3, c4, c5, c6 = st.columns([2,1,1,1.5,1.5,1])
-            c1.write(p["nazwa"])
-            c2.write(f"{p['liczba']} szt.")
-            c3.write(f"{p['cena']} zł")
-            c4.write(kat_id_na_nazwe.get(p["kategoria_id"], "—"))
-
-            ile = c5.number_input(
-                "Ilość",
-                min_value=1,
-                max_value=int(p["liczba"]),
-                value=1,
-                key=f"del_{p['id']}",
-                label_visibility="collapsed"
+            st.markdown(f"### {p['nazwa']}")
+            st.write(
+                f"Stan: **{p['liczba']} szt.** | "
+                f"Cena: **{p['cena']} zł** | "
+                f"Kategoria: **{kat_id_na_nazwe.get(p['kategoria_id'], '—')}**"
             )
 
-            if c6.button("➖", key=f"btn_{p['id']}"):
-                aktualizuj_stan(p["id"], p["liczba"] - ile)
-    else:
-        st.info("Magazyn jest pusty.")
+            col1, col2 = st.columns(2)
+
+            # ➖ ZDEJMIJ ILOŚĆ
+            with col1:
+                ile_minus = st.number_input(
+                    "Zdejmij ilość",
+                    min_value=1,
+                    max_value=int(p["liczba"]),
+                    value=1,
+                    key=f"minus_{p['id']}"
+                )
+                if st.button("➖ Zdejmij", key=f"btn_minus_{p['id']}"):
+                    ustaw_stan(p["id"], p["liczba"] - ile_minus)
+
+            # ➕ DODAJ ILOŚĆ
+            with col2:
+                ile_plus = st.number_input(
+                    "Dodaj ilość",
+                    min_value=1,
+                    value=1,
+                    key=f"plus_{p['id']}"
+                )
+                if st.button("➕ Dodaj", key=f"btn_plus_{p['id']}"):
+                    ustaw_stan(p["id"], p["liczba"] + ile_plus)
+
+            col3, col4 = st.columns(2)
+
+            # 🗑️ WYZERUJ
+            if col3.button("🗑️ Wyzeruj stan", key=f"zero_{p['id']}"):
+                ustaw_stan(p["id"], 0)
+
+            # ❌ USUŃ PRODUKT
+            if col4.button("❌ Usuń produkt", key=f"del_{p['id']}"):
+                usun_produkt(p["id"])
+
+            st.divider()
 
 # ================== TAB 2 — DODAJ PRODUKT ==================
 
@@ -131,7 +158,7 @@ with tab2:
     else:
         with st.form("dodaj_produkt"):
             nazwa = st.text_input("Nazwa produktu")
-            ilosc = st.number_input("Ilość", min_value=1, value=1)
+            ilosc = st.number_input("Ilość początkowa", min_value=1, value=1)
             cena = st.number_input("Cena (zł)", min_value=0.0, step=0.01)
             kategoria = st.selectbox("Kategoria", kat_nazwa_na_id.keys())
 
@@ -150,7 +177,6 @@ with tab2:
 with tab3:
     st.subheader("Kategorie")
 
-    # lista kategorii
     if kategorie:
         for k in kategorie:
             st.markdown(f"**{k['nazwa']}** — {k['opis']}")
@@ -159,27 +185,19 @@ with tab3:
 
     st.divider()
 
-    # ---- DODAJ KATEGORIĘ ----
     st.subheader("➕ Dodaj kategorię")
-
     with st.form("dodaj_kategorie"):
-        nowa_nazwa = st.text_input("Nazwa kategorii")
-        nowy_opis = st.text_area("Opis kategorii")
-        submit_add = st.form_submit_button("Dodaj kategorię")
+        nazwa = st.text_input("Nazwa kategorii")
+        opis = st.text_area("Opis kategorii")
+        submit = st.form_submit_button("Dodaj kategorię")
 
-        if submit_add:
-            dodaj_kategorie(nowa_nazwa, nowy_opis)
+        if submit:
+            dodaj_kategorie(nazwa, opis)
 
     st.divider()
 
-    # ---- USUŃ KATEGORIĘ ----
     st.subheader("🗑️ Usuń kategorię")
-
     if kategorie:
-        kat_do_usuniecia = st.selectbox(
-            "Wybierz kategorię do usunięcia",
-            options=list(kat_nazwa_na_id.keys())
-        )
-
+        kat = st.selectbox("Wybierz kategorię", kat_nazwa_na_id.keys())
         if st.button("Usuń kategorię"):
-            usun_kategorie(kat_nazwa_na_id[kat_do_usuniecia])
+            usun_kategorie(kat_nazwa_na_id[kat])
