@@ -23,10 +23,10 @@ def pobierz_dane():
     kategorie = supabase.table("kategorie").select("*").execute().data
     return produkty, kategorie
 
-def ustaw_stan(id_produktu, nowa_ilosc):
-    if nowa_ilosc > 0:
+def zmien_stan(id_produktu, nowy_stan):
+    if nowy_stan > 0:
         supabase.table("produkty").update(
-            {"liczba": nowa_ilosc}
+            {"liczba": nowy_stan}
         ).eq("id", id_produktu).execute()
     else:
         supabase.table("produkty").delete().eq("id", id_produktu).execute()
@@ -79,7 +79,6 @@ def usun_kategorie(kategoria_id):
 # ================== DANE ==================
 
 produkty, kategorie = pobierz_dane()
-
 kat_id_na_nazwe = {k["id"]: k["nazwa"] for k in kategorie}
 kat_nazwa_na_id = {k["nazwa"]: k["id"] for k in kategorie}
 
@@ -96,7 +95,7 @@ tab1, tab2, tab3 = st.tabs([
 # ================== TAB 1 — MAGAZYN ==================
 
 with tab1:
-    st.subheader("Zarządzanie stanem produktów")
+    st.subheader("Stan magazynu")
 
     if not produkty:
         st.info("Magazyn jest pusty.")
@@ -109,42 +108,31 @@ with tab1:
                 f"Kategoria: **{kat_id_na_nazwe.get(p['kategoria_id'], '—')}**"
             )
 
-            col_minus, col_plus = st.columns(2)
+            col_qty, col_minus, col_plus, col_zero, col_del = st.columns([2,1,1,1.5,1.5])
 
-            # ZMNIEJSZ
+            with col_qty:
+                ilosc = st.number_input(
+                    "Ilość",
+                    min_value=1,
+                    value=1,
+                    key=f"qty_{p['id']}"
+                )
+
             with col_minus:
-                st.caption("Zmniejsz ilość")
-                ile_minus = st.number_input(
-                    "",
-                    min_value=1,
-                    max_value=int(p["liczba"]),
-                    value=1,
-                    key=f"minus_{p['id']}",
-                    label_visibility="collapsed"
-                )
-                if st.button("➖", key=f"btn_minus_{p['id']}"):
-                    ustaw_stan(p["id"], p["liczba"] - ile_minus)
+                if st.button("➖", key=f"minus_{p['id']}"):
+                    zmien_stan(p["id"], max(0, p["liczba"] - ilosc))
 
-            # ZWIĘKSZ
             with col_plus:
-                st.caption("Zwiększ ilość")
-                ile_plus = st.number_input(
-                    "",
-                    min_value=1,
-                    value=1,
-                    key=f"plus_{p['id']}",
-                    label_visibility="collapsed"
-                )
-                if st.button("➕", key=f"btn_plus_{p['id']}"):
-                    ustaw_stan(p["id"], p["liczba"] + ile_plus)
+                if st.button("➕", key=f"plus_{p['id']}"):
+                    zmien_stan(p["id"], p["liczba"] + ilosc)
 
-            col_zero, col_del = st.columns(2)
+            with col_zero:
+                if st.button("🗑️ Wyzeruj", key=f"zero_{p['id']}"):
+                    zmien_stan(p["id"], 0)
 
-            if col_zero.button("🗑️ Wyzeruj stan", key=f"zero_{p['id']}"):
-                ustaw_stan(p["id"], 0)
-
-            if col_del.button("❌ Usuń produkt", key=f"del_{p['id']}"):
-                usun_produkt(p["id"])
+            with col_del:
+                if st.button("❌ Usuń", key=f"del_{p['id']}"):
+                    usun_produkt(p["id"])
 
             st.divider()
 
@@ -165,12 +153,7 @@ with tab2:
             submit = st.form_submit_button("➕ Dodaj produkt")
 
             if submit:
-                dodaj_produkt(
-                    nazwa,
-                    ilosc,
-                    cena,
-                    kat_nazwa_na_id[kategoria]
-                )
+                dodaj_produkt(nazwa, ilosc, cena, kat_nazwa_na_id[kategoria])
 
 # ================== TAB 3 — KATEGORIE ==================
 
@@ -185,19 +168,16 @@ with tab3:
 
     st.divider()
 
-    st.subheader("➕ Dodaj kategorię")
     with st.form("dodaj_kategorie"):
         nazwa = st.text_input("Nazwa kategorii")
         opis = st.text_area("Opis kategorii")
         submit = st.form_submit_button("Dodaj kategorię")
-
         if submit:
             dodaj_kategorie(nazwa, opis)
 
     st.divider()
 
-    st.subheader("🗑️ Usuń kategorię")
     if kategorie:
-        kat = st.selectbox("Wybierz kategorię", kat_nazwa_na_id.keys())
+        kat = st.selectbox("Usuń kategorię", kat_nazwa_na_id.keys())
         if st.button("Usuń kategorię"):
             usun_kategorie(kat_nazwa_na_id[kat])
