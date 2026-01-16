@@ -1,76 +1,152 @@
 import streamlit as st
 from supabase import create_client, Client
 
-# --- KONFIGURACJA POŁĄCZENIA ---
-# Upewnij się, że dodałeś te dane w Streamlit Cloud: Settings -> Secrets
+# ================== KONFIGURACJA ==================
+
+st.set_page_config(
+    page_title="📦 System Magazynowy",
+    layout="wide"
+)
+
 try:
-    URL = st.secrets["SUPABASE_URL"]
-    KEY = st.secrets["SUPABASE_KEY"]
-    supabase: Client = create_client(URL, KEY)
-except Exception as e:
-    st.error("Błąd konfiguracji! Dodaj Secrets: SUPABASE_URL i SUPABASE_KEY.")
+    SUPABASE_URL = st.secrets["SUPABASE_URL"]
+    SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+except Exception:
+    st.error("❌ Brak konfiguracji Supabase (SUPABASE_URL, SUPABASE_KEY)")
     st.stop()
 
-st.set_page_config(page_title="Magazyn Supabase", layout="wide")
-
-# --- FUNKCJE OBSŁUGI BAZY ---
+# ================== FUNKCJE BAZY ==================
 
 def pobierz_dane():
-    """Pobiera dane z tabel Produkty i Kategorie."""
     try:
-        # Zgodnie ze schematem: id (int8), nazwa (Tekst), liczba (int8), Cena (Numeryczne), kategoria_id (int8)
-        produkty = supabase.table("Produkty").select("*").execute()
-        # Zgodnie ze schematem: id (int8), nazwa (Tekst), opis (Tekst)
-        kategorie = supabase.table("Kategorie").select("*").execute()
-        return produkty.data, kategorie.data
+        produkty = supabase.table("Produkty").select("*").execute().data
+        kategorie = supabase.table("Kategorie").select("*").execute().data
+        return produkty, kategorie
     except Exception as e:
         st.error(f"Błąd pobierania danych: {e}")
         return [], []
 
-def aktualizuj_stan(id_produktu, nowa_liczba):
-    """Zmienia ilość produktu lub usuwa go, gdy stan wynosi 0."""
-    if nowa_liczba > 0:
-        supabase.table("Produkty").update({"liczba": nowa_liczba}).eq("id", id_produktu).execute()
+def aktualizuj_stan(id_produktu, nowa_ilosc):
+    if nowa_ilosc > 0:
+        supabase.table("Produkty").update(
+            {"liczba": nowa_ilosc}
+        ).eq("id", id_produktu).execute()
     else:
         supabase.table("Produkty").delete().eq("id", id_produktu).execute()
     st.rerun()
 
-# --- LOGIKA APLIKACJI ---
+def dodaj_produkt(nazwa, ilosc, cena, kategoria_id):
+    supabase.table("Produkty").insert({
+        "nazwa": nazwa,
+        "liczba": ilosc,
+        "cena": cena,
+        "kategoria_id": kategoria_id
+    }).execute()
+    st.success("✅ Produkt dodany")
+    st.rerun()
+
+def dodaj_kategorie(nazwa, opis):
+    supabase.table("Kategorie").insert({
+        "nazwa": nazwa,
+        "opis": opis
+    }).execute()
+    st.success("✅ Kategoria dodana")
+    st.rerun()
+
+# ================== DANE ==================
 
 produkty, kategorie = pobierz_dane()
 
-# Słowniki pomocnicze
-kat_id_na_nazwe = {k['id']: k['nazwa'] for k in kategorie}
-kat_nazwa_na_id = {k['nazwa']: k['id'] for k in kategorie}
-lista_nazw_produktow = list(set([p['nazwa'] for p in produkty]))
+kat_id_na_nazwe = {k["id"]: k["nazwa"] for k in kategorie}
+kat_nazwa_na_id = {k["nazwa"]: k["id"] for k in kategorie}
 
-st.title("📦 System Magazynowy Supabase")
+# ================== UI ==================
 
-tab1, tab2, tab3 = st.tabs(["📋 Magazyn i Wydawanie", "➕ Dodaj Produkt", "📂 Kategorie"])
+st.title("📦 System Magazynowy (Supabase)")
 
-# --- TAB 1: STAN I USUWANIE ILOŚCI ---
+tab1, tab2, tab3 = st.tabs([
+    "📋 Magazyn",
+    "➕ Dodaj produkt",
+    "📂 Kategorie"
+])
+
+# ================== TAB 1 ==================
+
 with tab1:
-    st.header("Aktualny stan magazynu")
-    if produkty:
-        # Nagłówki
-        col_n, col_s, col_c, col_k, col_u, col_a = st.columns([2, 1, 1, 1.5, 1.5, 1])
-        col_n.write("**Nazwa**")
-        col_s.write("**Stan**")
-        col_c.write("**Cena**")
-        col_k.write("**Kategoria**")
-        col_u.write("**Ile usunąć?**")
-        col_a.write("**Akcja**")
-        
+    st.subheader("Aktualny stan magazynu")
+
+    if not produkty:
+        st.info("Brak produktów w magazynie.")
+    else:
+        h1, h2, h3, h4, h5, h6 = st.columns([2, 1, 1, 1.5, 1.5, 1])
+        h1.write("**Nazwa**")
+        h2.write("**Stan**")
+        h3.write("**Cena**")
+        h4.write("**Kategoria**")
+        h5.write("**Ile wydać**")
+        h6.write("**Akcja**")
+
         for p in produkty:
-            c_n, c_s, c_c, c_k, c_u, c_a = st.columns([2, 1, 1, 1.5, 1.5, 1])
-            c_n.write(p['nazwa'])
-            c_s.write(f"{p['liczba']} szt.")
-            # Zgodnie ze schematem kolumna nazywa się 'Ce...' (prawdopodobnie Cena/Cennik)
-            # Jeśli w bazie masz inną nazwę, zmień klucz poniżej
-            c_c.write(f"{p.get('Cena', p.get('Ce...', 0))} zł")
-            c_k.write(kat_id_na_nazwe.get(p['kategoria_id'], "Brak"))
-            
-            # Pole do wpisania ilości do usunięcia
-            ile_do_odjecia = c_u.number_input(
-                "Ilość", min_value=1, max_value=int(p['liczba']), 
-                value=1, key=f"del_{p['id']}", label_visibility="collapsed
+            c1, c2, c3, c4, c5, c6 = st.columns([2, 1, 1, 1.5, 1.5, 1])
+
+            c1.write(p["nazwa"])
+            c2.write(f"{p['liczba']} szt.")
+            c3.write(f"{p['cena']} zł")
+            c4.write(kat_id_na_nazwe.get(p["kategoria_id"], "—"))
+
+            ile = c5.number_input(
+                "Ilość",
+                min_value=1,
+                max_value=int(p["liczba"]),
+                value=1,
+                key=f"del_{p['id']}",
+                label_visibility="collapsed"
+            )
+
+            if c6.button("➖", key=f"btn_{p['id']}"):
+                aktualizuj_stan(p["id"], p["liczba"] - ile)
+
+# ================== TAB 2 ==================
+
+with tab2:
+    st.subheader("Dodaj nowy produkt")
+
+    with st.form("dodaj_produkt"):
+        nazwa = st.text_input("Nazwa produktu")
+        ilosc = st.number_input("Ilość", min_value=1, value=1)
+        cena = st.number_input("Cena (zł)", min_value=0.0, step=0.01)
+
+        kategoria = st.selectbox(
+            "Kategoria",
+            options=list(kat_nazwa_na_id.keys())
+        )
+
+        submitted = st.form_submit_button("➕ Dodaj")
+
+        if submitted:
+            dodaj_produkt(
+                nazwa,
+                ilosc,
+                cena,
+                kat_nazwa_na_id[kategoria]
+            )
+
+# ================== TAB 3 ==================
+
+with tab3:
+    st.subheader("Kategorie")
+
+    for k in kategorie:
+        st.markdown(f"**{k['nazwa']}** — {k['opis']}")
+
+    st.divider()
+
+    with st.form("dodaj_kategorie"):
+        nazwa = st.text_input("Nazwa kategorii")
+        opis = st.text_area("Opis")
+        submitted = st.form_submit_button("➕ Dodaj kategorię")
+
+        if submitted:
+            dodaj_kategorie(nazwa, opis)
+
