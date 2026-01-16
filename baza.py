@@ -24,7 +24,7 @@ if not supabase:
 # ================== FUNKCJE ==================
 def pobierz_dane():
     try:
-        # Pobieramy produkty i kategorie
+        # Pobieramy wszystko bez sztywnego sortowania w SQL, by uniknąć błędów wielkości liter
         produkty = supabase.table("produkty").select("*").execute().data
         kategorie = supabase.table("kategorie").select("*").execute().data
         return produkty, kategorie
@@ -61,12 +61,12 @@ with tab1:
     st.divider()
 
     znaleziono = False
-    # Sortowanie produktów ręcznie w Pythonie dla pewności
-    produkty_posortowane = sorted(produkty, key=lambda x: (x.get('nazwa') or "").lower())
+    # Sortujemy produkty w Pythonie, aby mieć pewność, że nazwa nie zniknie z widoku
+    posortowane = sorted(produkty, key=lambda x: str(x.get('nazwa') or x.get('Nazwa') or "").lower())
 
-    for p in produkty_posortowane:
-        # WYŚWIETLANIE NAZWY - sprawdzamy wszystkie opcje
-        nazwa_p = p.get('nazwa') or p.get('Nazwa') or "PRODUKT BEZ NAZWY"
+    for p in posortowane:
+        # --- POBIERANIE NAZWY ---
+        nazwa_p = p.get('nazwa') or p.get('Nazwa') or p.get('name') or "BEZ NAZWY"
         
         obecny_stan = p.get('liczba') if p.get('liczba') is not None else 0
         min_stan = p.get('minimum') if p.get('minimum') is not None else 0
@@ -81,11 +81,11 @@ with tab1:
                 with st.container():
                     c1, c2 = st.columns([2, 1])
                     with c1:
-                        # Główne wyświetlanie nazwy
                         t_color = "#FF4B4B" if is_low else "#FAFAFA"
                         st.markdown(f"### <span style='color:{t_color}'>{nazwa_p}</span>", unsafe_allow_html=True)
                         st.write(f"**Stan:** `{obecny_stan} szt.` | **Min:** {min_stan} | **Cena:** {cena_p} zł")
                         st.caption(f"Kategoria: {kat_nazwa}")
+
                     with c2:
                         zmiana = st.number_input("Ilość", min_value=1, value=1, key=f"v_{p['id']}", label_visibility="collapsed")
                         b1, b2 = st.columns(2)
@@ -95,65 +95,76 @@ with tab1:
                         with b2:
                             if st.button("➖ Odejmij", key=f"s_{p['id']}", use_container_width=True):
                                 zmien_stan(p["id"], obecny_stan - zmiana)
+                        
+                        if st.button("🗑️ Usuń", key=f"d_{p['id']}", use_container_width=True, type="secondary"):
+                            supabase.table("produkty").delete().eq("id", p['id']).execute()
+                            st.rerun()
                 st.divider()
+    
+    if not znaleziono:
+        st.info("Brak produktów.")
 
-# ================== TAB 3 — DODAJ PRODUKT (POPRAWIONY) ==================
+# ================== TAB 3 — DODAJ PRODUKT (NAPRAWIONY) ==================
 with tab3:
     st.subheader("Nowy towar")
-    # Formularz bez clear_on_submit, żeby mieć pewność, że dane nie znikną przed zapisem
-    with st.form("form_add_v2"):
+    # USUNIĘTO clear_on_submit, aby zapobiec znikania nazwy przed zapisem
+    with st.form("form_dodaj_v3", clear_on_submit=False):
         ca, cb = st.columns(2)
         with ca:
-            f_nazwa = st.text_input("Nazwa produktu*")
-            f_ilosc = st.number_input("Ilość", min_value=0, value=0)
+            f_nazwa = st.text_input("Nazwa produktu (wymagane)*")
+            f_ilosc = st.number_input("Ilość początkowa", min_value=0, value=0)
             f_cena = st.number_input("Cena (zł)", min_value=0.0, step=0.01)
         with cb:
             f_min = st.number_input("Próg alarmowy", min_value=0, value=5)
-            f_kat = st.selectbox("Kategoria", list(kat_nazwa_na_id.keys()))
+            # Obsługa błędu jeśli nie ma kategorii
+            opcje_kat = list(kat_nazwa_na_id.keys()) if kat_nazwa_na_id else ["Brak kategorii"]
+            f_kat = st.selectbox("Kategoria", opcje_kat)
         
-        submit = st.form_submit_button("Zapisz produkt")
+        # Przycisk wysyłania
+        zapisz = st.form_submit_button("✅ Zapisz produkt w magazynie")
         
-        if submit:
-            # Bardzo ważne: sprawdzamy czy nazwa nie jest pusta
-            nazwa_do_zapisu = f_nazwa.strip()
-            if nazwa_do_zapisu:
+        if zapisz:
+            czysta_nazwa = f_nazwa.strip()
+            if not czysta_nazwa:
+                st.error("❌ BŁĄD: Nazwa produktu nie może być pusta!")
+            elif not kat_nazwa_na_id:
+                st.error("❌ BŁĄD: Musisz najpierw dodać kategorię!")
+            else:
                 try:
-                    data = {
-                        "nazwa": nazwa_do_zapisu,
+                    # Wysyłamy dane jawnie przypisane do zmiennych
+                    nowy_rekord = {
+                        "nazwa": czysta_nazwa,
                         "liczba": f_ilosc,
                         "cena": f_cena,
                         "kategoria_id": kat_nazwa_na_id[f_kat],
                         "minimum": f_min
                     }
-                    res = supabase.table("produkty").insert(data).execute()
-                    if res.data:
-                        st.success(f"Pomyślnie dodano produkt: {nazwa_do_zapisu}")
-                        st.rerun()
-                    else:
-                        st.error("Baza danych nie zwróciła potwierdzenia zapisu.")
+                    supabase.table("produkty").insert(nowy_rekord).execute()
+                    st.success(f"✅ Dodano produkt: {czysta_nazwa}")
+                    # Odświeżamy stronę, co wyczyści formularz i pokaże produkt w magazynie
+                    st.rerun()
                 except Exception as e:
-                    st.error(f"Błąd podczas zapisu: {e}")
-            else:
-                st.warning("Musisz podać nazwę produktu przed zapisem!")
+                    st.error(f"❌ Błąd zapisu: {e}")
 
-# ================== TAB 2 i 4 (BEZ ZMIAN) ==================
+# ================== TAB 2 & 4 (PODSTAWOWE) ==================
 with tab2:
+    st.subheader("Analityka")
+    total_val = sum((p.get('liczba', 0) or 0) * (p.get('cena', 0.0) or 0.0) for p in produkty)
+    st.metric("Wartość magazynu", f"{total_val:,.2f} zł")
+    # Prosty wykres
     if produkty:
-        total_val = sum((p.get('liczba', 0) or 0) * (p.get('cena', 0.0) or 0.0) for p in produkty)
-        st.metric("Wartość magazynu", f"{total_val:,.2f} zł")
         wykres_data = {}
         for p in produkty:
-            k_n = kat_id_na_nazwe.get(p.get('kategoria_id'), "Inne")
-            wartość = (p.get('liczba', 0) or 0) * (p.get('cena', 0.0) or 0.0)
-            wykres_data[k_n] = wykres_data.get(k_n, 0) + wartość
+            kn = kat_id_na_nazwe.get(p.get('kategoria_id'), "Inne")
+            wykres_data[kn] = wykres_data.get(kn, 0) + ((p.get('liczba', 0) or 0) * (p.get('cena', 0.0) or 0.0))
         st.bar_chart(wykres_data)
 
 with tab4:
-    st.subheader("Dodaj nową kategorię")
-    with st.form("kat_add"):
-        kn = st.text_input("Nazwa kategorii")
+    st.subheader("Zarządzanie kategoriami")
+    with st.form("add_k_safe"):
+        kn = st.text_input("Nazwa nowej kategorii")
         ko = st.text_area("Opis")
         if st.form_submit_button("Dodaj"):
-            if kn:
-                supabase.table("kategorie").insert({"nazwa": kn, "opis": ko}).execute()
+            if kn.strip():
+                supabase.table("kategorie").insert({"nazwa": kn.strip(), "opis": ko}).execute()
                 st.rerun()
