@@ -102,13 +102,17 @@ with tab1:
     else:
         for p in produkty:
             st.markdown(f"### {p['nazwa']}")
-            st.write(
-                f"Stan: **{p['liczba']} szt.** | "
-                f"Cena: **{p['cena']} zł** | "
-                f"Kategoria: **{kat_id_na_nazwe.get(p['kategoria_id'], '—')}**"
+
+            st.caption(
+                f"Stan: {p['liczba']} szt. | "
+                f"Cena: {p['cena']} zł | "
+                f"Kategoria: {kat_id_na_nazwe.get(p['kategoria_id'], '—')}"
             )
 
-            col_qty, col_minus, col_plus, col_zero, col_del = st.columns([2,1,1,1.5,1.5])
+            # ---- JEDEN PROFESJONALNY PASEK ----
+            col_qty, col_minus, col_plus, col_zero, col_del = st.columns(
+                [2, 1, 1, 2, 2]
+            )
 
             with col_qty:
                 ilosc = st.number_input(
@@ -127,11 +131,11 @@ with tab1:
                     zmien_stan(p["id"], p["liczba"] + ilosc)
 
             with col_zero:
-                if st.button("🗑️ Wyzeruj", key=f"zero_{p['id']}"):
+                if st.button("🗑️ Wyzeruj stan", key=f"zero_{p['id']}"):
                     zmien_stan(p["id"], 0)
 
             with col_del:
-                if st.button("❌ Usuń", key=f"del_{p['id']}"):
+                if st.button("❌ Usuń produkt", key=f"del_{p['id']}"):
                     usun_produkt(p["id"])
 
             st.divider()
